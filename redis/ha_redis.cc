@@ -150,7 +150,6 @@ static bool redis_is_supported_system_table(const char *db,
   @see
   handler::ha_open() in handler.cc
 */
-
 int ha_redis::open(const char *tname, int, uint, const dd::Table *) {
     DBUG_ENTER("ha_redis::open");
 
@@ -162,13 +161,7 @@ int ha_redis::open(const char *tname, int, uint, const dd::Table *) {
         DBUG_RETURN(-1);
     }
 
-    std::string s = tname;
-    std::string::size_type pos = s.find_last_of("/");
-    if(pos != std::string::basic_string::npos) {
-        share->table_name = s.substr(pos+1, s.length()-(pos+1)).c_str();
-    } else {
-        share->table_name = tname;
-    }
+    share->table_name = get_table_name(tname);
 
     DBUG_RETURN(0);
 }
@@ -617,9 +610,21 @@ THR_LOCK_DATA **ha_redis::store_lock(THD *, THR_LOCK_DATA **to,
   @see
   delete_table and ha_create_table() in handler.cc
 */
-int ha_redis::delete_table(const char *, const dd::Table *) {
+int ha_redis::delete_table(const char *table_name, const dd::Table *) {
     DBUG_ENTER("ha_redis::delete_table()");
-    /* This is not implemented but we want someone to be able that it works. */
+    // Todo: Handlers are already deleted??
+
+    c = redisConnect("127.0.0.1", 6379);
+    if (c != NULL && c->err) {
+        DBUG_RETURN(-1);
+    }
+    std::string cmd = "DEL " + get_table_name(table_name);
+    redisReply *ret = (redisReply *)redisCommand(c, cmd.c_str());
+    if(ret) {
+        freeReplyObject(ret);
+    }
+    redisFree(c);
+
     DBUG_RETURN(0);
 }
 

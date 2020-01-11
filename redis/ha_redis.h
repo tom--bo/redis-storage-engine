@@ -109,6 +109,18 @@ class ha_redis : public handler {
   }
 
   /** @brief
+   * retrieve table name from path
+   */
+  std::string get_table_name(const char *tname) {
+      std::string s = tname;
+      std::string::size_type pos = s.find_last_of("/");
+      if(pos != std::string::basic_string::npos) {
+          return s.substr(pos+1, s.length()-(pos+1)).c_str();
+      }
+      return tname;
+  }
+
+  /** @brief
     unireg.cc will call max_supported_record_length(), max_supported_keys(),
     max_supported_key_parts(), uint max_supported_key_length()
     to make sure that the storage engine can handle the data it is about to
