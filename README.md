@@ -1,31 +1,34 @@
 # redis storage engine
 
+redis storage engine is a sample storage engine for learning MySQL more.
+Starting from example storage engine, This engine is developed to use Redis for backend.
+Its purpose is to understand MySQL deeper and just for fun!
 
-
+I refered and learned many from example, csv, memory, tempTable, InnoDB storage engines.
 
 
 ## Supported queries
 
+- DDL
+  - [x] CREATE
+  - [x] DROP
+- DML
+  - [x] SELECT
+  - [x] INSERT 
+  - [x] DELETE
+  - [x] UPDATE
+  - [ ] TRUNCATE
 
 
 ## Prerequisite
 
-- Redis Server
+- [Redis](https://github.com/antirez/redis) database
 - [hiredis](https://github.com/redis/hiredis)
 
 
 ## How to Install
 
 ```sh
-## Install hiredis
-Please see https://github.com/redis/hiredis
-
-(You need to be able to find hiredis with pkg-config command because CMake uses pkg-config)
-```sh
-$ pkg-config --list-all | grep hiredis
-hiredis                        hiredis - Minimalistic C client library for Redis.
-```
-
 ## Download repo
 git clone https://github.com/tom--bo/redis-storage-engine
 cd redis-storage-engine
@@ -47,6 +50,16 @@ Then, You can create a redis-storage-engine table!!
 ```sql
 mysql> CREATE TABLE test(...) ENGINE = redis;
 ```
+
+### Install hiredis
+Please see https://github.com/redis/hiredis
+
+(You need to be able to find hiredis with pkg-config command because CMake uses pkg-config)
+```sh
+$ pkg-config --list-all | grep hiredis
+hiredis                        hiredis - Minimalistic C client library for Redis.
+```
+
 
 ## How to Test
 
