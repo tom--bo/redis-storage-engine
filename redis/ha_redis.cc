@@ -529,7 +529,32 @@ int ha_redis::extra(enum ha_extra_function) {
 */
 int ha_redis::delete_all_rows() {
     DBUG_ENTER("ha_redis::delete_all_rows()");
-    DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+
+    // I can't still confirm this truncate() is called
+    // when I execute `truncate table ...`, `delete from ... (no where clause) and so on.
+    /*
+     * std::string cmd = "DEL " + share->table_name;
+     * redisReply *ret = (redisReply *)redisCommand(c, cmd.c_str());
+     * if(ret) {
+     *     freeReplyObject(ret);
+     * }
+     */
+
+    DBUG_RETURN(0);
+}
+
+int ha_redis::truncate(dd::Table *) {
+    DBUG_ENTER("ha_redis::truncate()");
+
+    // I can't still confirm this truncate() is called when I execute `truncate table ...`
+    /*
+     * std::string cmd = "DEL " + share->table_name;
+     * redisReply *ret = (redisReply *)redisCommand(c, cmd.c_str());
+     * if(ret) {
+     *     freeReplyObject(ret);
+     * }
+     */
+    DBUG_RETURN(0);
 }
 
 /**
@@ -684,8 +709,18 @@ static MYSQL_THDVAR_UINT(create_count_thdvar, 0, NULL, NULL, NULL, 0, 0, 1000,0)
 
 int ha_redis::create(const char *name, TABLE *, HA_CREATE_INFO *, dd::Table *) {
     /*
-      This is not implemented because use list type of Redis.
+      Initialize(re-create) table to truncate table.
     */
+    c = redisConnect("127.0.0.1", 6379);
+    if (c != NULL && c->err) {
+        return 0;
+    }
+
+    std::string cmd = "DEL " + get_table_name(name);
+    redisReply *ret = (redisReply *)redisCommand(c, cmd.c_str());
+    if(ret) {
+        freeReplyObject(ret);
+    }
 
     /*
       It's just an redis of THDVAR_SET() usage below.

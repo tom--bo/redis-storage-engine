@@ -259,6 +259,7 @@ class ha_redis : public handler {
   int extra(enum ha_extra_function operation);
   int external_lock(THD *thd, int lock_type);  ///< required
   int delete_all_rows(void);
+  int truncate(dd::Table *);
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   int delete_table(const char *from, const dd::Table *table_def);
   int rename_table(const char *from, const char *to,
