@@ -12,12 +12,13 @@ I refered and learned many from example, csv, memory, tempTable, InnoDB storage 
 - DDL
   - [x] CREATE
   - [x] DROP
+  - [x] TRUNCATE
 - DML
   - [x] SELECT
   - [x] INSERT 
   - [x] DELETE
   - [x] UPDATE
-  - [ ] TRUNCATE
+  - [ ] REPLACE
 
 
 ## Prerequisite
@@ -27,6 +28,17 @@ I refered and learned many from example, csv, memory, tempTable, InnoDB storage 
 
 
 ## How to Install
+
+### Install hiredis
+Please see https://github.com/redis/hiredis
+
+(You need to be able to find hiredis with pkg-config command because CMake uses pkg-config)
+```sh
+$ pkg-config --list-all | grep hiredis
+hiredis                        hiredis - Minimalistic C client library for Redis.
+```
+
+### Install redis storage engine
 
 ```sh
 ## Download repo
@@ -51,14 +63,6 @@ Then, You can create a redis-storage-engine table!!
 mysql> CREATE TABLE test(...) ENGINE = redis;
 ```
 
-### Install hiredis
-Please see https://github.com/redis/hiredis
-
-(You need to be able to find hiredis with pkg-config command because CMake uses pkg-config)
-```sh
-$ pkg-config --list-all | grep hiredis
-hiredis                        hiredis - Minimalistic C client library for Redis.
-```
 
 
 ## How to Test
@@ -70,5 +74,8 @@ Before test, you need to install redis storage engine...
 TBD
 ```
 
+## LISENCE
+
+GPL
 
 
