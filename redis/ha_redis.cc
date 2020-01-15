@@ -441,7 +441,7 @@ int ha_redis::rnd_next(uchar *buf) {
   BDB, then it needs to be a primary key.
 */
 void ha_redis::position(const uchar *) {
-    // DBUG_TRACE;
+    my_store_ptr(ref, ref_length, current_position);
 }
 
 /**
@@ -451,11 +451,10 @@ void ha_redis::position(const uchar *) {
   ref. You can use ha_get_ptr(pos,ref_length) to retrieve whatever key
   or position you saved when position() was called.
 */
-int ha_redis::rnd_pos(uchar *, uchar *) {
-    int rc;
-    // DBUG_TRACE;
-    rc = HA_ERR_WRONG_COMMAND;
-    return rc;
+int ha_redis::rnd_pos(uchar *buf, uchar *pos) {
+    DBUG_PRINT("buf", ("buf in ha_redis::rnd_pos %s", buf));
+    current_position = my_get_ptr(pos, ref_length);
+    return 0;
 }
 
 /**
