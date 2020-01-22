@@ -167,10 +167,10 @@ public:
       Called in test_quick_select to determine if indexes should be used.
     */
     virtual double scan_time() {
-        return (double)(stats.records + stats.deleted) / 2.0 + 100;
         // Experimentally, I return big score to force using index (I'm not sure it works well...)
         // below is original (example se)
         // return (double)(stats.records + stats.deleted) / 20.0 + 10;
+        return (double)(stats.records + stats.deleted) / 2.0 + 100;
     }
 
     /** @brief

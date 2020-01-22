@@ -92,13 +92,14 @@ Redis_share *ha_redis::get_share() {
     DBUG_RETURN(tmp_share);
 }
 
-static handler *redis_create_handler(handlerton *hton, TABLE_SHARE *table,
-                                       bool, MEM_ROOT *mem_root) {
+static handler *redis_create_handler(handlerton *hton, TABLE_SHARE *table, bool, MEM_ROOT *mem_root) {
     return new (mem_root) ha_redis(hton, table);
 }
 
 ha_redis::ha_redis(handlerton *hton, TABLE_SHARE *table_arg)
-        : handler(hton, table_arg) {}
+    : handler(hton, table_arg),
+    current_position(0) {
+}
 
 /*
   List of all system tables specific to the SE.
@@ -225,6 +226,7 @@ int ha_redis::write_row(uchar *) {
         freeReplyObject(ret);
     }
 
+    stats.records++;
     DBUG_RETURN(0);
 }
 
@@ -240,7 +242,7 @@ int ha_redis::update_row(const uchar *, uchar *) {
     char attr_buf[1024];
     std::string record_str = "";
 
-    ha_statistic_increment(&System_status_var::ha_write_count);
+    // ha_statistic_increment(&System_status_var::ha_update_count);
 
     String attribute(attr_buf, sizeof(attr_buf), &my_charset_bin);
     my_bitmap_map *org_bitmap = tmp_use_all_columns(table, table->read_set);
@@ -248,8 +250,17 @@ int ha_redis::update_row(const uchar *, uchar *) {
     for(Field **field = table->field; *field; field++) {
         const char *p;
         const char *end;
+        const bool was_null = (*field)->is_null();
+
+        if (was_null) {
+            (*field)->set_default();
+            (*field)->set_notnull();
+        }
 
         (*field)->val_str(&attribute, &attribute);
+
+        if (was_null) (*field)->set_null();
+
         p = attribute.ptr();
         end = attribute.length() + p;
 
@@ -278,6 +289,7 @@ int ha_redis::update_row(const uchar *, uchar *) {
 */
 int ha_redis::delete_row(const uchar *) {
     // (current_position-1)に","をセットする
+    ha_statistic_increment(&System_status_var::ha_delete_count);
     std::string cmd = "LSET " + share->table_name += " " + std::to_string(current_position-1) + " ,";
     redisReply *ret = (redisReply *)redisCommand(c, cmd.c_str());
     if(ret) {
@@ -414,7 +426,7 @@ int ha_redis::rnd_next(uchar *buf) {
         if (pos == std::string::npos) {
             pos = r.length();
         }
-        (*field)->store(&buffer[last_pos], pos - last_pos, buffer.charset());
+        (*field)->store(&buffer[last_pos], pos - last_pos, buffer.charset(), CHECK_FIELD_WARN);
         last_pos = ++pos;
     }
 
@@ -452,19 +464,57 @@ void ha_redis::position(const uchar *) {
   or position you saved when position() was called.
 */
 int ha_redis::rnd_pos(uchar *buf, uchar *pos) {
+    DBUG_ENTER("ha_redis::rnd_pos");
     DBUG_PRINT("buf", ("buf in ha_redis::rnd_pos %s", buf));
+
+    ha_statistic_increment(&System_status_var::ha_read_rnd_count);
     current_position = my_get_ptr(pos, ref_length);
-    return 0;
+
+    std::string cmdstr;
+    bool read_all = !bitmap_is_clear_all(table->write_set);
+    my_bitmap_map *org_bitmap = tmp_use_all_columns(table, table->write_set);
+    memset(buf, 0, table->s->null_bytes);
+
+    // get length of list
+    cmdstr = "LLEN " + share->table_name;
+    redisReply *rlen = (redisReply *)redisCommand(c, cmdstr.c_str());
+    unsigned long l = rlen->integer;
+    if(l == 0 || current_position > l) {
+        freeReplyObject(rlen);
+        tmp_restore_column_map(table->write_set, org_bitmap);
+        DBUG_RETURN(HA_ERR_END_OF_FILE);
+    }
+    freeReplyObject(rlen);
+
+    // get values by index
+    cmdstr = "LINDEX " + share->table_name + " " + std::to_string(current_position-1);
+    redisReply *rr = (redisReply *)redisCommand(c, cmdstr.c_str());
+    std::string r = rr->str;
+    buffer.length(0);
+    buffer.append(r.c_str());
+    freeReplyObject(rr);
+
+    int last_pos = 0;
+    for (Field **field = table->field; *field; field++) {
+        if (read_all || bitmap_is_set(table->read_set, (*field)->field_index)) {
+            std::string::size_type p = r.find(",", last_pos);
+            if (p == std::string::npos) {
+                p = r.length();
+            }
+            (*field)->store(&buffer[last_pos], p - last_pos, buffer.charset(), CHECK_FIELD_IGNORE);
+            last_pos = p+1 ;
+        }
+    }
+
+    tmp_restore_column_map(table->write_set, org_bitmap);
+
+    DBUG_RETURN(0);
 }
 
 /**
   @brief
   ::info() is used to return information to the optimizer. See my_base.h for
   the complete description.
-
-  @details
-  Currently this table handler doesn't implement most of the fields really
-  needed. SHOW also makes use of this data.
 
   You will probably want to have the following in your code:
   @code
