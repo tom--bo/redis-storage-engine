@@ -55,8 +55,6 @@ static bool redis_is_supported_system_table(const char *db,
 Redis_share::Redis_share() { thr_lock_init(&lock); }
 
 static int redis_init_func(void *p) {
-    // DBUG_TRACE;
-
     redis_hton = (handlerton *)p;
     redis_hton->state = SHOW_OPTION_YES;
     redis_hton->create = redis_create_handler;
@@ -75,7 +73,6 @@ static int redis_init_func(void *p) {
   one of these? Well, you have pieces that are used for locking, and
   they are needed to function.
 */
-
 Redis_share *ha_redis::get_share() {
     Redis_share *tmp_share;
     DBUG_ENTER("ha_redis::get_share()");
@@ -193,7 +190,6 @@ int ha_redis::close(void) {
 
   See ha_tina.cc for an example of extracting all of the data as strings.
 */
-
 int ha_redis::write_row(uchar *) {
     DBUG_ENTER("ha_redis::write_row");
     char attr_buf[1024];
@@ -239,11 +235,9 @@ int ha_redis::write_row(uchar *) {
 */
 int ha_redis::update_row(const uchar *, uchar *) {
     DBUG_ENTER("ha_redis::write_row");
+    ha_statistic_increment(&System_status_var::ha_update_count);
     char attr_buf[1024];
     std::string record_str = "";
-
-    // ha_statistic_increment(&System_status_var::ha_update_count);
-
     String attribute(attr_buf, sizeof(attr_buf), &my_charset_bin);
     my_bitmap_map *org_bitmap = tmp_use_all_columns(table, table->read_set);
 
@@ -327,7 +321,6 @@ int ha_redis::index_next(uchar *) {
   @brief
   Used to read backwards through the index.
 */
-
 int ha_redis::index_prev(uchar *) {
     int rc;
     // DBUG_TRACE;
@@ -568,41 +561,19 @@ int ha_redis::extra(enum ha_extra_function) {
   Called from sql_delete.cc by mysql_delete().
   Called from sql_select.cc by JOIN::reinit().
   Called from sql_union.cc by st_select_lex_unit::exec().
-
-  @see
-  Item_func_group_concat::clear(), Item_sum_count_distinct::clear() and
-  Item_func_group_concat::clear() in item_sum.cc;
-  mysql_delete() in sql_delete.cc;
-  JOIN::reinit() in sql_select.cc and
-  st_select_lex_unit::exec() in sql_union.cc.
 */
 int ha_redis::delete_all_rows() {
     DBUG_ENTER("ha_redis::delete_all_rows()");
-
     // I can't still confirm this truncate() is called
     // when I execute `truncate table ...`, `delete from ... (no where clause) and so on.
-    /*
-     * std::string cmd = "DEL " + share->table_name;
-     * redisReply *ret = (redisReply *)redisCommand(c, cmd.c_str());
-     * if(ret) {
-     *     freeReplyObject(ret);
-     * }
-     */
 
     DBUG_RETURN(0);
 }
 
 int ha_redis::truncate(dd::Table *) {
     DBUG_ENTER("ha_redis::truncate()");
-
     // I can't still confirm this truncate() is called when I execute `truncate table ...`
-    /*
-     * std::string cmd = "DEL " + share->table_name;
-     * redisReply *ret = (redisReply *)redisCommand(c, cmd.c_str());
-     * if(ret) {
-     *     freeReplyObject(ret);
-     * }
-     */
+
     DBUG_RETURN(0);
 }
 
@@ -680,9 +651,6 @@ THR_LOCK_DATA **ha_redis::store_lock(THD *, THR_LOCK_DATA **to,
   Called from handler.cc by delete_table and ha_create_table(). Only used
   during create if the table_flag HA_DROP_BEFORE_CREATE was specified for
   the storage engine.
-
-  @see
-  delete_table and ha_create_table() in handler.cc
 */
 int ha_redis::delete_table(const char *table_name, const dd::Table *) {
     DBUG_ENTER("ha_redis::delete_table()");
@@ -724,17 +692,14 @@ int ha_redis::rename_table(const char *, const char *, const dd::Table *,
 
   @details
   end_key may be empty, in which case determine if start_key matches any rows.
-
   Called from opt_range.cc by check_quick_keys().
 */
 ha_rows ha_redis::records_in_range(uint, key_range *, key_range *) {
     DBUG_ENTER("ha_redis::records_in_range()");
-    // DBUG_TRACE;
     DBUG_RETURN(10); // low number to force index usage
 }
 
 static MYSQL_THDVAR_STR(last_create_thdvar, PLUGIN_VAR_MEMALLOC, NULL, NULL, NULL, NULL);
-
 static MYSQL_THDVAR_UINT(create_count_thdvar, 0, NULL, NULL, NULL, 0, 0, 1000,0);
 
 /**
@@ -749,17 +714,10 @@ static MYSQL_THDVAR_UINT(create_count_thdvar, 0, NULL, NULL, NULL, 0, 0, 1000,0)
   the .frm file at this point if you wish to change the table
   definition, but there are no methods currently provided for doing
   so.
-
   Called from handle.cc by ha_create_table().
-
-  @see
-  ha_create_table() in handle.cc
 */
-
 int ha_redis::create(const char *name, TABLE *, HA_CREATE_INFO *, dd::Table *) {
-    /*
-      Initialize(re-create) table to truncate table.
-    */
+    // Initialize(re-create) table to truncate table.
     c = redisConnect("127.0.0.1", 6379);
     if (c != NULL && c->err) {
         return 0;
