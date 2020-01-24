@@ -201,6 +201,10 @@ int ha_redis::write_row(uchar *) {
     my_bitmap_map *org_bitmap = tmp_use_all_columns(table, table->read_set);
 
     for(Field **field = table->field; *field; field++) {
+        if((*field)->is_null()) {
+            record_str += ",";
+            continue;
+        }
         const char *p;
         const char *end;
 
@@ -213,7 +217,6 @@ int ha_redis::write_row(uchar *) {
         }
         record_str += ",";
     }
-    record_str.pop_back();
     tmp_restore_column_map(table->read_set, org_bitmap);
 
     std::string cmd = "RPUSH " + share->table_name += " " + record_str;
@@ -263,7 +266,6 @@ int ha_redis::update_row(const uchar *, uchar *) {
         }
         record_str += ",";
     }
-    record_str.pop_back();
     tmp_restore_column_map(table->read_set, org_bitmap);
 
     std::string cmd = "LSET " + share->table_name += " " + std::to_string(current_position-1) + " " + record_str;
@@ -278,13 +280,13 @@ int ha_redis::update_row(const uchar *, uchar *) {
 /**
   @brief
   This will delete a row.
-  This set the value ",". And After setting all deleting rows Actually delete them in rnd_end().
+  This set the value ".". And After setting all deleting rows Actually delete them in rnd_end().
   This is temporal implimentation.
 */
 int ha_redis::delete_row(const uchar *) {
-    // (current_position-1)に","をセットする
+    // (current_position-1)に"."をセットする
     ha_statistic_increment(&System_status_var::ha_delete_count);
-    std::string cmd = "LSET " + share->table_name += " " + std::to_string(current_position-1) + " ,";
+    std::string cmd = "LSET " + share->table_name += " " + std::to_string(current_position-1) + " .";
     redisReply *ret = (redisReply *)redisCommand(c, cmd.c_str());
     if(ret) {
         freeReplyObject(ret);
@@ -368,7 +370,7 @@ int ha_redis::rnd_end() {
     DBUG_ENTER("ha_redis::rnd_end");
 
     // for delete
-    std::string cmd = "LREM " + share->table_name + " 0 ,";
+    std::string cmd = "LREM " + share->table_name + " 0 .";
     redisReply *rr = (redisReply *)redisCommand(c, cmd.c_str());
     int deleted = rr->integer;
     deleted++; // dummy
@@ -419,7 +421,12 @@ int ha_redis::rnd_next(uchar *buf) {
         if (pos == std::string::npos) {
             pos = r.length();
         }
-        (*field)->store(&buffer[last_pos], pos - last_pos, buffer.charset(), CHECK_FIELD_WARN);
+        // no value means NULL
+        if(pos - last_pos == 0) {
+            (*field)->set_null();
+        } else {
+            (*field)->store(&buffer[last_pos], pos - last_pos, buffer.charset(), CHECK_FIELD_WARN);
+        }
         last_pos = ++pos;
     }
 
