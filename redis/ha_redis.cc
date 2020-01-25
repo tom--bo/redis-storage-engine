@@ -247,22 +247,16 @@ int ha_redis::update_row(const uchar *, uchar *) {
     for(Field **field = table->field; *field; field++) {
         const char *p;
         const char *end;
-        const bool was_null = (*field)->is_null();
 
-        if (was_null) {
-            (*field)->set_default();
-            (*field)->set_notnull();
-        }
+        if(!(*field)->is_null()) {
+            (*field)->val_str(&attribute, &attribute);
 
-        (*field)->val_str(&attribute, &attribute);
+            p = attribute.ptr();
+            end = attribute.length() + p;
 
-        if (was_null) (*field)->set_null();
-
-        p = attribute.ptr();
-        end = attribute.length() + p;
-
-        for(; p < end; p++) {
-            record_str += *p;
+            for(; p < end; p++) {
+                record_str += *p;
+            }
         }
         record_str += ",";
     }
