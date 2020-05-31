@@ -52,11 +52,16 @@ git clone https://github.com/tom--bo/redis-storage-engine
 cd redis-storage-engine
 cp -r redis /path/to/mysql-server/storage/
 
-# (Build mysql-server as you like...)
+## (Build mysql-server as you like...)
+# (Sample)
+# cd /path/to/mysql-server
+# mkdir bld; cd bld
+# cmake .. -DDOWNLOAD_BOOST=1 -DWITH_BOOST=../myboost -DWITH_DEBUG=1 -DENABLE_DOWNLOADS=1 -DWITH_INNODB_EXTRA_DEBUG=1 -DCMAKE_C_FLAGS_RELWITHDEBINFO="-O0 -g" -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O0 -g"
+# make -j 16
 
 ## Set result shared object
 BUILD_DIR=/path/to/build_dir
-mkdir -p ${BUILD_DIR}/plugin_output_directory/plugin # if you don't have, create dir
+mkdir -p ${BUILD_DIR}/lib/plugin # if you don't have, create dir
 cp ${BUILD_DIR}/plugin_output_directory/ha_redis.so ${BUILD_DIR}/lib/plugin/
 
 ## Set appropriate permission
